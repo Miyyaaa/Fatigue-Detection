@@ -1,45 +1,45 @@
 # 🚗 Système de Détection de Fatigue en Temps Réel
 
+[![Python 3.8+](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
+[![MediaPipe](https://img.shields.io/badge/MediaPipe-0.10+-green.svg)](https://mediapipe.dev/)
+
 **Projet DNN - Détection de somnolence au volant par Deep Learning**
 
-Ce système utilise un réseau de neurones convolutif (CNN) basé sur **MobileNetV2** avec **transfer learning** (pré-entraîné sur ImageNet) pour détecter la fatigue à partir du visage capturé par webcam.
+Ce système utilise un CNN (MobileNetV2 + Transfer Learning) pour détecter la fatigue en temps réel via webcam. Le projet supporte **deux modes de détection de visages** : MediaPipe (production) et CNN personnalisé (démonstration académique).
 
 ---
 
 ## 📋 Table des Matières
 
-- [Architecture](#-architecture)
+- [Fonctionnalités](#-fonctionnalités)
 - [Installation](#-installation)
 - [Utilisation Rapide](#-utilisation-rapide)
-- [Créer son Dataset](#-créer-son-dataset)
-- [Entraîner le Modèle](#-entraîner-le-modèle)
+- [Modes de Détection](#-modes-de-détection)
+- [Entraînement](#-entraînement)
 - [Structure du Projet](#-structure-du-projet)
-- [Explication Technique](#-explication-technique)
+- [Architecture Technique](#-architecture-technique)
 
 ---
 
-## 🧠 Architecture
+## ✨ Fonctionnalités
 
-```
-┌─────────────┐     ┌──────────────┐     ┌─────────────────┐     ┌─────────┐
-│   Webcam    │ ──► │  MediaPipe   │ ──► │  MobileNetV2    │ ──► │ Alerte  │
-│   (Frame)   │     │  (Face ROI)  │     │  (CNN ImageNet) │     │ Sonore  │
-└─────────────┘     └──────────────┘     └─────────────────┘     └─────────┘
-```
-
-| Composant | Description |
-|-----------|-------------|
-| **MediaPipe** | Détecte le visage et extrait la région d'intérêt (ROI) |
-| **MobileNetV2** | CNN pré-entraîné sur ImageNet (1.4M d'images, 1000 classes) |
-| **Transfer Learning** | Fine-tuning du modèle pour 2 classes : Alerte / Fatigué |
+| Fonctionnalité | Description |
+|----------------|-------------|
+| 🎯 **Détection temps réel** | Analyse vidéo via webcam |
+| 🔄 **Double backend** | MediaPipe (rapide) ou CNN custom (académique) |
+| 🧠 **Transfer Learning** | MobileNetV2 pré-entraîné sur ImageNet |
+| 🔊 **Alarme sonore** | Alerte en cas de somnolence |
+| 📊 **HUD informatif** | Score de fatigue, FPS, statut |
 
 ---
 
-## � Installation
+## 🔧 Installation
 
 ```bash
-# Cloner ou accéder au projet
-cd /home/matthias/epita/ing2/dnn/fatigue
+# Cloner le projet
+git clone <repo_url>
+cd Fatigue-Detection
 
 # Installer les dépendances
 pip install -r requirements.txt
@@ -48,176 +48,154 @@ pip install -r requirements.txt
 **Dépendances principales :**
 - `torch` & `torchvision` - Deep Learning
 - `opencv-python` - Traitement vidéo
-- `mediapipe` - Détection de visage
+- `mediapipe` - Détection de visage (optionnel)
 - `pygame` - Alarme sonore
 
 ---
 
 ## 🚀 Utilisation Rapide
 
-### Option 1 : Sans entraînement (backbone ImageNet)
+### Lancer la détection (Mode MediaPipe - défaut)
 ```bash
-python fatigue_detector.py
-```
-Le modèle utilise directement les features ImageNet pour évaluer la fatigue.
-
-### Option 2 : Avec modèle entraîné
-```bash
-python fatigue_detector.py --model fatigue_model.pth
+python main.py
 ```
 
-### Contrôles
+### Avec modèle de fatigue entraîné
+```bash
+python main.py --model models/fatigue_model.pth
+```
+
+### Mode CNN personnalisé
+```bash
+python main.py --detector custom --face-model models/face_detector_model.pth
+```
+
+### Options disponibles
+```bash
+python main.py --help
+```
+
+| Option | Description |
+|--------|-------------|
+| `-d, --detector` | `mediapipe` (défaut) ou `custom` |
+| `-m, --model` | Chemin vers le modèle de fatigue |
+| `--face-model` | Chemin vers le modèle de détection de visages |
+| `-c, --camera` | ID de la caméra (défaut: 0) |
+
+---
+
+## 🔀 Modes de Détection
+
+### Mode A : MediaPipe (Production)
+```bash
+python main.py --detector mediapipe
+```
+- ✅ Rapide (~30+ FPS)
+- ✅ Précis
+- ❌ Dépend de Google MediaPipe
+
+### Mode B : CNN Personnalisé (Académique)
+```bash
+python main.py --detector custom --face-model models/face_detector_model.pth
+```
+- ✅ Architecture maîtrisée (pour rapport)
+- ✅ ~37K paramètres (explicable)
+- ❌ Plus lent (sliding window)
+
+Le CNN personnalisé utilise une approche **sliding window** avec un classificateur binaire (Face vs Non-Face).
+
+---
+
+## 🎓 Entraînement
+
+### 1. Entraîner le détecteur de visages (Custom CNN)
+```bash
+# Télécharge automatiquement LFW + génère le dataset
+python scripts/train_face_detector.py --download --epochs 20
+
+# Mode hors-ligne (visages synthétiques)
+python scripts/train_face_detector.py --download --offline --epochs 20
+```
+
+### 2. Créer un dataset de fatigue
+```bash
+python scripts/generate_dataset.py --output ./data/fatigue --samples 200
+```
 | Touche | Action |
 |--------|--------|
+| `A` | Capturer visage **Alerte** |
+| `F` | Capturer visage **Fatigué** |
 | `Q` | Quitter |
-| `R` | Réinitialiser les scores |
 
----
-
-## 📸 Créer son Dataset
-
-Pour entraîner un modèle personnalisé, capturez des images de votre visage :
-
+### 3. Entraîner le modèle de fatigue
 ```bash
-python generate_dataset.py --output ./data --samples 200
-```
-
-### Contrôles pendant la capture
-| Touche | Action |
-|--------|--------|
-| `A` | Capturer visage **Alerte** (yeux ouverts, attentif) |
-| `F` | Capturer visage **Fatigué** (yeux mi-clos, bâillements) |
-| `Q` | Terminer la capture |
-
-**Conseils pour un bon dataset :**
-- Variez les expressions et angles
-- Capturez dans différentes conditions d'éclairage
-- Pour "Fatigué" : fermez les yeux, bâillez, inclinez la tête
-- Minimum recommandé : 200 images par classe
-
----
-
-## 🎓 Entraîner le Modèle
-
-```bash
-python train.py --data_dir ./data --epochs 20
-```
-
-### Paramètres disponibles
-| Paramètre | Défaut | Description |
-|-----------|--------|-------------|
-| `--data_dir` | (requis) | Dossier contenant train/ et val/ |
-| `--epochs` | 30 | Nombre d'époques |
-| `--batch_size` | 16 | Taille des batchs |
-| `--lr` | 0.001 | Learning rate |
-| `--freeze` | 5 | Epochs avec backbone gelé |
-| `--output` | fatigue_model.pth | Fichier de sortie |
-
-### Stratégie de Transfer Learning
-1. **Epochs 1-5** : Backbone MobileNetV2 gelé, seule la tête de classification apprend
-2. **Epochs 6+** : Backbone dégelé, fine-tuning complet avec LR réduit (×0.1)
-
----
-
-## � Structure du Projet
-
-```
-fatigue/
-├── fatigue_detector.py   # Système de détection temps réel
-├── train.py              # Script d'entraînement
-├── generate_dataset.py   # Capture d'images via webcam
-├── requirements.txt      # Dépendances Python
-├── fatigue_model.pth     # Modèle entraîné (généré)
-├── README.md             # Ce fichier
-└── data/                 # Dataset (généré)
-    ├── train/
-    │   ├── alert/        # Visages alertes
-    │   └── fatigued/     # Visages fatigués
-    └── val/
-        ├── alert/
-        └── fatigued/
+python scripts/train_fatigue.py --data_dir ./data/fatigue --epochs 20
 ```
 
 ---
 
-## 🔬 Explication Technique
-
-### MobileNetV2
-
-Architecture légère optimisée pour le mobile/embarqué :
-- **Inverted Residual Blocks** avec expansion/projection
-- **Depthwise Separable Convolutions** pour réduire les paramètres
-- Seulement **3.4M de paramètres** (vs 138M pour VGG16)
+## 📁 Structure du Projet
 
 ```
-Input (224×224×3)
-    │
-    ▼
-┌─────────────────┐
-│  Conv 3×3       │ ── 32 filtres
-│  + 17 Blocs IR  │ ── Inverted Residual
-│  Conv 1×1       │ ── 1280 features
-└────────┬────────┘
-         │
-    ▼────┴────▼
-┌─────────────────┐
-│ Global AvgPool  │
-│ Dropout (0.3)   │
-│ FC 1280→256     │
-│ ReLU + Dropout  │
-│ FC 256→2        │
-└─────────────────┘
-    │
-    ▼
-[Alerte, Fatigué]
+Fatigue-Detection/
+├── main.py                     # Point d'entrée principal
+├── requirements.txt
+├── README.md
+│
+├── src/                        # Code source modulaire
+│   ├── detectors/              # Détecteurs de visages
+│   │   ├── base.py             # Classe abstraite
+│   │   ├── mediapipe_detector.py
+│   │   └── custom_cnn.py       # SimpleFaceCNN
+│   ├── models/
+│   │   └── fatigue_cnn.py      # MobileNetV2
+│   └── core/
+│       ├── scorer.py           # Scoring de fatigue
+│       └── alarm.py            # Gestion alarmes
+│
+├── scripts/                    # Scripts utilitaires
+│   ├── train_fatigue.py        # Entraîner modèle fatigue
+│   ├── train_face_detector.py  # Entraîner CNN custom
+│   └── generate_dataset.py     # Capturer dataset
+│
+├── models/                     # Modèles sauvegardés (.pth)
+│   ├── fatigue_model.pth
+│   └── face_detector_model.pth
+│
+└── data/                       # Datasets
+    ├── fatigue/                # Dataset de fatigue
+    └── faces/                  # Dataset de visages
 ```
 
-### Pourquoi Transfer Learning ?
+---
 
-1. **ImageNet features** : Le backbone a appris des features visuelles universelles (bords, textures, formes)
-2. **Peu de données nécessaires** : 200-500 images suffisent vs 10k+ pour train from scratch
-3. **Entraînement rapide** : Convergence en 10-20 epochs
+## 🔬 Architecture Technique
 
 ### Pipeline de Détection
 
-```python
-# 1. Capture frame
-frame = webcam.read()
-
-# 2. Extraction visage (MediaPipe)
-face_roi = mediapipe.detect_face(frame)  # 224×224 RGB
-
-# 3. Prétraitement ImageNet
-tensor = normalize(face_roi, mean=[0.485, 0.456, 0.406], 
-                            std=[0.229, 0.224, 0.225])
-
-# 4. Inférence CNN
-prob_fatigue = model(tensor).softmax()[1]  # Probabilité classe "fatigué"
-
-# 5. Décision
-if prob_fatigue > 0.5 pendant 2 secondes:
-    trigger_alarm()
+```
+┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐     ┌─────────┐
+│   Webcam    │ ──► │  Face Detector   │ ──► │  MobileNetV2    │ ──► │ Alerte  │
+│   (Frame)   │     │  (MediaPipe/CNN) │     │  (Fatigue CNN)  │     │ Sonore  │
+└─────────────┘     └──────────────────┘     └─────────────────┘     └─────────┘
 ```
 
----
+### SimpleFaceCNN (~37K paramètres)
+```
+Input: 64×64×3 RGB
+    ↓
+Conv(3→16) + BN + ReLU + MaxPool  →  32×32×16
+Conv(16→32) + BN + ReLU + MaxPool →  16×16×32
+Conv(32→64) + BN + ReLU + MaxPool →  8×8×64
+    ↓
+Flatten → FC(4096→128) → ReLU → Dropout
+FC(128→2) → Output [no_face, face]
+```
 
-## 📊 Métriques de Sortie
-
-| Métrique | Description |
-|----------|-------------|
-| **Fatigue %** | Probabilité de fatigue (sortie softmax du CNN) |
-| **Status** | OK / ATTENTION / ALERTE selon le seuil |
-| **FPS** | Images par seconde traitées |
-
----
-
-## 🎯 Améliorations Possibles
-
-- [ ] Ajouter des features géométriques (EAR, MAR, pose de tête)
-- [ ] Implémenter PERCLOS (% temps yeux fermés)
-- [ ] Data augmentation plus agressive
-- [ ] Exporter en ONNX pour déploiement embarqué
-- [ ] Tester d'autres backbones (EfficientNet, ResNet18)
+### FatigueCNN (MobileNetV2)
+- **Backbone**: MobileNetV2 pré-entraîné (ImageNet)
+- **Head**: FC(1280→256→2)
+- **Transfer Learning**: Backbone gelé puis fine-tuning
 
 ---
 
@@ -225,7 +203,7 @@ if prob_fatigue > 0.5 pendant 2 secondes:
 
 - [MobileNetV2 Paper](https://arxiv.org/abs/1801.04381)
 - [MediaPipe Face Landmarker](https://developers.google.com/mediapipe/solutions/vision/face_landmarker)
-- [PyTorch Transfer Learning Tutorial](https://pytorch.org/tutorials/beginner/transfer_learning_tutorial.html)
+- [LFW Dataset](http://vis-www.cs.umass.edu/lfw/)
 
 ---
 

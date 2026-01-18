@@ -23,6 +23,7 @@ Usage:
 """
 
 import os
+import sys
 import argparse
 import torch
 import torch.nn as nn
@@ -34,7 +35,9 @@ import numpy as np
 from pathlib import Path
 from tqdm import tqdm
 
-from fatigue_detector import FatigueCNN
+# Ajouter le dossier parent au path pour les imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from src.models import FatigueCNN
 
 
 class FaceDataset(Dataset):
